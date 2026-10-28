@@ -3,6 +3,7 @@ build/
 build-*/
 cmake-build-*/
 out/
+dist/
 CMakeUserPresets.json
 
 # Firmware images and other build products: publish UF2s as release assets, not in git

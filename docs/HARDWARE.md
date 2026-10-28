@@ -94,11 +94,19 @@ up, down, left, right, centre, B, A (bits 0-6); `src/buttons.h` keeps that order
 ## Memory
 
 * **Flash:** 16 MB, W25Q-compatible (JEDEC `0x9F` reports the size; this firmware checks it at boot).
-* **EEPROM:** 1 KB on I2C0. It belongs to the badge's game firmware and this firmware never accesses it.
+* **EEPROM:** 1 KB on I2C0. Not used by this firmware.
+
+## Getting into BOOTSEL
+
+Normally you never need a button. The firmware reboots into the boot ROM when its serial port is
+opened at 1200 baud, or with `picotool reboot -u -f`. If the badge doesn't come up on USB at all,
+the RP2350 also enters BOOTSEL when **QSPI_SS** (QFN pin 60, the flash chip select) is held low
+while it powers up or resets. That is what a BOOTSEL button does. Whether this board has the button
+or a test pad for it isn't documented yet.
 
 ## Not yet known
 
-* The panel's exact part number and the 16-pin FPC pinout.
+* The panel's exact part number, the 16-pin FPC pinout, and whether there is a BOOTSEL button.
 * Whether GPIO8 really is TE: send `0x35` and put a scope on it.
 * What is physically on GPIO18 (an LED is the best guess).
 * Whether the board has external I2C pull-ups.

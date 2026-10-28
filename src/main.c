@@ -182,7 +182,7 @@ static void update_leds(uint32_t t) {
 }
 
 static void print_help(void) {
-    printf("\nSC26 GIF player - commands:\n"
+    printf("\nSC26 GIF player %s - commands:\n"
            "  n / p   next / previous GIF\n"
            "  l       list GIFs on the drive\n"
            "  space   pause / resume\n"
@@ -193,12 +193,14 @@ static void print_help(void) {
            "  i       info\n"
            "  t       button test (prints which buttons are held)\n"
            "Buttons: left/right = previous/next GIF, up/down = backlight,\n"
-           "         centre = pause, A = LED mode, B = LED brightness\n");
+           "         centre = pause, A = LED mode, B = LED brightness\n",
+           SC26_VERSION);
 }
 
 static void print_info(void) {
     int w, h;
     gif_player_canvas_size(&w, &h);
+    printf("SC26 GIF player %s\n", SC26_VERSION);
     printf("now playing: %s (%dx%d)%s\n", playing[0] ? playing : "built-in matrix_rain.gif", w, h,
            paused ? " [paused]" : "");
     printf("GIFs on drive: %d, frames drawn: %lu, backlight %d%%, LEDs: %s (%d)\n", gif_store_count(),

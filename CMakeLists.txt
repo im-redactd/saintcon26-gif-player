@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 redactd
-cmake_minimum_required(VERSION 3.13)
+# 3.17: the SDK needs it when it builds picotool itself
+cmake_minimum_required(VERSION 3.17)
 
 set(PICO_BOARD sc26_badge)
 set(PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_LIST_DIR}/boards)
@@ -16,7 +17,14 @@ if (PICO_SDK_VERSION_STRING VERSION_LESS "2.3.0")
 endif()
 pico_sdk_init()
 
-# The default GIF linked into the image (copied onto the drive at first boot)
+# Version shown by the console's 'i' command and by `picotool info`; release builds pass the git tag
+set(SC26_VERSION "dev" CACHE STRING "Firmware version string")
+if (NOT SC26_VERSION MATCHES "^[A-Za-z0-9._+-]+$")
+    message(FATAL_ERROR "SC26_VERSION may only contain letters, digits and . _ + -")
+endif()
+
+# The default GIF linked into the image and copied onto the drive at first boot. The firmware
+# refers to it as matrix_rain.gif (gif_store.c, main.c), so swap the file, not the name.
 set(BUILTIN_GIF ${CMAKE_CURRENT_LIST_DIR}/gifs/matrix_rain.gif)
 configure_file(src/builtin_gif.S.in ${CMAKE_CURRENT_BINARY_DIR}/builtin_gif.S @ONLY)
 set_property(SOURCE ${CMAKE_CURRENT_BINARY_DIR}/builtin_gif.S APPEND PROPERTY OBJECT_DEPENDS ${BUILTIN_GIF})
@@ -57,6 +65,7 @@ target_compile_definitions(sc26_gif PRIVATE
     PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=0
     # widest GIF canvas AnimatedGIF accepts (one line buffer of this many bytes)
     MAX_WIDTH=1024
+    SC26_VERSION="${SC26_VERSION}"
 )
 
 # Our own code builds warning-free with -Wall -Wextra. gif_player.c #includes AnimatedGIF's gif.inl,
@@ -82,7 +91,7 @@ target_link_libraries(sc26_gif
 pico_enable_stdio_usb(sc26_gif 1)
 pico_enable_stdio_uart(sc26_gif 0)
 pico_set_program_name(sc26_gif "SC26 GIF player")
-pico_set_program_version(sc26_gif "1.0")
+pico_set_program_version(sc26_gif "${SC26_VERSION}")
 pico_add_extra_outputs(sc26_gif)
 
 # The image must end below the drive's metadata journal (1 MB - 8 KB). Shrinking the linker's FLASH

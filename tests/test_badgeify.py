@@ -28,10 +28,12 @@ def moving_square_gif(path, w=320, h=180, frames=12):
 
 
 def frames(path):
-    im = Image.open(path)
-    for i in range(im.n_frames):
-        im.seek(i)
-        yield im.convert('RGB'), im.info.get('duration')
+    out = []
+    with Image.open(path) as im:
+        for i in range(im.n_frames):
+            im.seek(i)
+            out.append((im.convert('RGB'), im.info.get('duration')))
+    return out
 
 
 class BadgeifyTest(unittest.TestCase):
@@ -51,25 +53,25 @@ class BadgeifyTest(unittest.TestCase):
 
     def test_size_frames_and_timing(self):
         out = self.convert()
-        got = list(frames(out))
+        got = frames(out)
         self.assertEqual(len(got), 12)
         self.assertTrue(all(f.size == (360, 360) for f, _ in got))
         self.assertTrue(all(d == 80 for _, d in got))
 
     def test_frame_differencing_is_invisible(self):
-        delta = list(frames(self.convert('--fuzz', '0')))
-        full = list(frames(self.convert('--fuzz', '-1')))
+        delta = frames(self.convert('--fuzz', '0'))
+        full = frames(self.convert('--fuzz', '-1'))
         for (a, _), (b, _) in zip(delta, full):
             worst = max(ImageStat.Stat(ImageChops.difference(a, b)).mean)
             self.assertLess(worst, 1.0)
 
     def test_corners_are_black(self):
-        first, _ = next(frames(self.convert('--fit')))
+        first, _ = frames(self.convert('--fit'))[0]
         for corner in [(0, 0), (359, 0), (0, 359), (359, 359)]:
             self.assertEqual(first.getpixel(corner), (0, 0, 0))
 
     def test_fit_keeps_whole_frame(self):
-        first, _ = next(frames(self.convert('--fit')))
+        first, _ = frames(self.convert('--fit'))[0]
         bbox = first.getbbox()  # non-black area = the fitted picture
         width = bbox[2] - bbox[0]
         self.assertGreater(width, 250)  # 320-wide source scaled into the circle, not cropped to 180
