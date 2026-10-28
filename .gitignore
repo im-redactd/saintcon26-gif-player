@@ -1,0 +1,37 @@
+# --- Build output (CMake/Ninja/Make, VS Code Pico extension, CLion) ---
+build/
+build-*/
+cmake-build-*/
+out/
+CMakeUserPresets.json
+
+# Firmware images and other build products: publish UF2s as release assets, not in git
+*.uf2
+*.elf
+*.bin
+*.hex
+*.dis
+*.map
+*.o
+*.obj
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- GIFs you do not have the rights to publish (film/TV clips, memes, ...) ---
+# Keep them in one of these folders; gifs/ is for original artwork only.
+private/
+gifs/private/

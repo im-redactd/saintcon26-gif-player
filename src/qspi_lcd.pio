@@ -1,0 +1,32 @@
+; SPDX-License-Identifier: MIT
+; Copyright (c) 2026 redactd
+; Write-only QSPI master for the ST77916 LCD.
+; OUT pins = D0..D3 (4 consecutive GPIOs), side-set = SCLK. SPI mode 0: data changes while
+; SCLK is low and the panel samples it on the rising edge. With autopull at 8 bits and a
+; left shift, every byte written to the TX FIFO goes out as two nibbles, high nibble first.
+; 1-bit (single line) phases are sent by spreading each bit onto D0 in software.
+.program qspi_lcd
+.side_set 1
+
+.wrap_target
+    out pins, 4    side 0
+    nop            side 1
+.wrap
+
+% c-sdk {
+static inline void qspi_lcd_program_init(PIO pio, uint sm, uint offset, uint d0_pin, uint sclk_pin, float clkdiv) {
+    for (uint i = 0; i < 4; i++) pio_gpio_init(pio, d0_pin + i);
+    pio_gpio_init(pio, sclk_pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, d0_pin, 4, true);
+    pio_sm_set_consecutive_pindirs(pio, sm, sclk_pin, 1, true);
+
+    pio_sm_config c = qspi_lcd_program_get_default_config(offset);
+    sm_config_set_out_pins(&c, d0_pin, 4);
+    sm_config_set_sideset_pins(&c, sclk_pin);
+    sm_config_set_out_shift(&c, false, true, 8);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+    sm_config_set_clkdiv(&c, clkdiv);
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}
