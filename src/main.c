@@ -5,11 +5,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "arcade.h"
 #include "buttons.h"
 #include "display.h"
 #include "flash_disk.h"
 #include "gif_player.h"
 #include "gif_store.h"
+#include "hardware/structs/watchdog.h"
 #include "leds.h"
 #include "pico/stdlib.h"
 #include "tusb.h"
@@ -27,6 +29,7 @@ static char playing[GIF_STORE_NAME_MAX];  // name of the file being played ("" =
 static unsigned playing_stamp;
 static char pending[GIF_STORE_NAME_MAX];  // newly copied file that could not be opened yet
 static bool paused;
+static bool leave_to_menu;
 static enum led_mode led_mode = LED_AMBIENT;
 static int backlight = 80;
 static uint32_t frames_drawn;
@@ -259,12 +262,14 @@ static void handle_buttons(uint32_t pressed) {
         case BTN_DOWN: handle_command('-'); break;
         case BTN_CENTER: handle_command(' '); break;
         case BTN_A: handle_command('m'); break;
-        case BTN_B: handle_command('b'); break;
+        case BTN_B: leave_to_menu = true; break;
         }
     }
 }
 
 int main(void) {
+    // A Doom hang reboots us through the watchdog, which can still be armed.
+    hw_clear_bits(&watchdog_hw->ctrl, WATCHDOG_CTRL_ENABLE_BITS);
     leds_init();
     status_led_put(true);
     buttons_init();
@@ -278,53 +283,60 @@ int main(void) {
     stdio_init_all();  // stdio_usb expects TinyUSB to be up already (it asserts so in Debug builds)
     if (!mounted) printf("gif_store: could not mount or format the drive\n");
 
-    if (gif_store_count()) step(+1);
-    else open_builtin();
-
-    uint32_t last_usb_write = 0;
+    arcade_splash();
     for (;;) {
-        tud_task();
-        uint32_t t = now_ms();
-
-        int c = getchar_timeout_us(0);
-        if (c >= 0) handle_command(c);
-        handle_buttons(buttons_poll());
-        status_led_put((t / 500) & 1);
-
-        // Host writes to the drive: keep playing, and rescan once the writes have stopped.
-        uint32_t w = flash_disk_host_write_ms();
-        if (w && t - w > FLASH_IDLE_FLUSH_MS) flash_disk_flush();
-        if (w != last_usb_write) {
-            last_usb_write = w;
-            if (!usb_busy) printf("receiving (LBA %lu)...\n", (unsigned long)flash_disk_host_last_lba());
-            usb_busy = true;
-        }
-        if (usb_busy && t - w >= USB_QUIET_MS) {
-            usb_busy = false;
-            flash_disk_flush();
-            rescan_after_usb();
-        }
-
-        // While a write burst is streaming in, give USB the whole loop: decoding a frame takes
-        // tens of ms, during which tud_task() would not run and the transfer would stall.
-        bool streaming = usb_busy && t - w < USB_STREAMING_MS;
-        update_leds(t);  // rate-limited inside; keeps LED modes live while paused too
-        if (paused || streaming || (int32_t)(t - next_frame) < 0) continue;
-        display_wait();
-        int delay;
-        uint64_t t0 = time_us_64();
-        int rc = gif_player_next_frame(&delay);
-        uint32_t took = (uint32_t)(time_us_64() - t0);
-        decode_us_avg = decode_us_avg ? (decode_us_avg * 7 + took) / 8 : took;
-        if (took > decode_us_max) decode_us_max = took;
-        if (rc < 0) {
-            printf("GIF error in %s: %s - skipping\n", playing[0] ? playing : "built-in", gif_player_error());
-            step(+1);
-            next_frame = t + 200;
+        int pick = arcade_menu();
+        if (pick < 0) {
+            launch_doom();
             continue;
         }
-        display_present();
-        frames_drawn++;
-        next_frame = t + (uint32_t)delay;
+        if (!open_index(pick)) continue;
+        leave_to_menu = false;
+        uint32_t last_usb_write = 0;
+        while (!leave_to_menu) {
+            tud_task();
+            uint32_t t = now_ms();
+
+            int c = getchar_timeout_us(0);
+            if (c >= 0) handle_command(c);
+            handle_buttons(buttons_poll());
+            status_led_put((t / 500) & 1);
+
+            // Host writes to the drive: keep playing, and rescan once the writes have stopped.
+            uint32_t w = flash_disk_host_write_ms();
+            if (w && t - w > FLASH_IDLE_FLUSH_MS) flash_disk_flush();
+            if (w != last_usb_write) {
+                last_usb_write = w;
+                if (!usb_busy) printf("receiving (LBA %lu)...\n", (unsigned long)flash_disk_host_last_lba());
+                usb_busy = true;
+            }
+            if (usb_busy && t - w >= USB_QUIET_MS) {
+                usb_busy = false;
+                flash_disk_flush();
+                rescan_after_usb();
+            }
+
+            // While a write burst is streaming in, give USB the whole loop: decoding a frame takes
+            // tens of ms, during which tud_task() would not run and the transfer would stall.
+            bool streaming = usb_busy && t - w < USB_STREAMING_MS;
+            update_leds(t);  // rate-limited inside; keeps LED modes live while paused too
+            if (paused || streaming || (int32_t)(t - next_frame) < 0) continue;
+            display_wait();
+            int delay;
+            uint64_t t0 = time_us_64();
+            int rc = gif_player_next_frame(&delay);
+            uint32_t took = (uint32_t)(time_us_64() - t0);
+            decode_us_avg = decode_us_avg ? (decode_us_avg * 7 + took) / 8 : took;
+            if (took > decode_us_max) decode_us_max = took;
+            if (rc < 0) {
+                printf("GIF error in %s: %s - skipping\n", playing[0] ? playing : "built-in", gif_player_error());
+                step(+1);
+                next_frame = t + 200;
+                continue;
+            }
+            display_present();
+            frames_drawn++;
+            next_frame = t + (uint32_t)delay;
+        }
     }
 }

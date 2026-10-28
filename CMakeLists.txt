@@ -39,6 +39,7 @@ set(SC26_SOURCES
     src/usb_descriptors.c
     src/leds.c
     src/buttons.c
+    src/arcade.c
 )
 add_executable(sc26_gif
     ${SC26_SOURCES}
@@ -55,7 +56,8 @@ target_include_directories(sc26_gif PRIVATE src lib/fatfs lib/AnimatedGIF)
 
 target_compile_definitions(sc26_gif PRIVATE
     # flash layout: firmware in the first 1 MB, the GIF drive in the rest
-    FLASH_DISK_OFFSET=0x100000
+    # firmware 0..1 MB, Doom at 1 MB, shareware WAD at 2 MB, GIF drive at 4 MB
+    FLASH_DISK_OFFSET=0x400000
     # USB: the app owns TinyUSB (CDC console + MSC drive + picotool reset interface)
     PICO_ENABLE_USB_RESET_VIA_VENDOR_INTERFACE=1
     PICO_ENABLE_USB_RESET_VIA_BAUD_RATE=1
@@ -86,11 +88,12 @@ target_link_libraries(sc26_gif
     hardware_pwm
     hardware_flash
     hardware_clocks
+    hardware_watchdog
 )
 
 pico_enable_stdio_usb(sc26_gif 1)
 pico_enable_stdio_uart(sc26_gif 0)
-pico_set_program_name(sc26_gif "SC26 GIF player")
+pico_set_program_name(sc26_gif "klippy-cade")
 pico_set_program_version(sc26_gif "${SC26_VERSION}")
 pico_add_extra_outputs(sc26_gif)
 
