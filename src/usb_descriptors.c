@@ -59,10 +59,10 @@ static char serial_str[PICO_UNIQUE_BOARD_ID_SIZE_BYTES * 2 + 1];
 
 static const char *const strings[STR_COUNT] = {
     [STR_MANUF] = "redactd",
-    [STR_PRODUCT] = "SC26 Badge GIF Player",
+    [STR_PRODUCT] = "klippy-cade",
     [STR_SERIAL] = serial_str,
     [STR_CDC] = "SC26 Console",
-    [STR_MSC] = "SC26 GIF Drive",
+    [STR_MSC] = "klippy-cade",
     [STR_RESET] = "Reset",
 };
 

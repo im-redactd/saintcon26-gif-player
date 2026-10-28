@@ -55,7 +55,7 @@ static bool format_and_seed(void) {
     printf("gif_store: formatting %lu KB flash drive\n", (unsigned long)(flash_disk_sector_count() / 2));
     if (f_mkfs("", &opt, work, sizeof work) != FR_OK) return false;
     if (f_mount(&fs, "", 1) != FR_OK) return false;
-    f_setlabel("SC26GIFS");
+    f_setlabel("KLIPPYCADE");
     unsigned len;
     const unsigned char *gif = gif_store_builtin(&len);
     write_file("matrix_rain.gif", gif, len);
